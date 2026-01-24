@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.4](https://github.com/elanthia-online/simu-rewards/compare/v1.2.3...v1.2.4) (2026-01-24)
+
+
+### Bug Fixes
+
+* account.ts update getToken method to use cheerio API ([8a1172e](https://github.com/elanthia-online/simu-rewards/commit/8a1172e65b63b0b61f08904f1e79054c475b70cc))
+* account.ts update getToken method to use cheerio API ([#1](https://github.com/elanthia-online/simu-rewards/issues/1)) ([e7624ce](https://github.com/elanthia-online/simu-rewards/commit/e7624ceee1457a9735cc4b81c91468d1eec93c8f))
+
 ## [1.2.3](https://github.com/ondreian/simu-rewards/compare/v1.2.2...v1.2.3) (2025-02-05)
 
 
