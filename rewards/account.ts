@@ -15,17 +15,13 @@ function signinUrl (gameCode : GameCode) {
 }
 
 export async function getToken (gameCode : GameCode) {
-  const rewriter = new HTMLRewriter()
   const storeUrl = signinUrl(gameCode)
-  let token = ""
-
-  const input = await fetchWithCookies(storeUrl)
-
-  rewriter.on("[name='__RequestVerificationToken']", {
-    element(element) {
-      token = element.getAttribute("value") as string
-    }
-  }).transform(input)
+  
+  const response = await fetchWithCookies(storeUrl)
+  const html = await response.text()
+  const $ = cheerio.load(html)
+  
+  const token = $("[name='__RequestVerificationToken']").val() as string
 
   if (!token) {
     throw new Error("could not parse csrf token")

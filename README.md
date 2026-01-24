@@ -1,5 +1,7 @@
 # Daily Simutronic Rewards
 
+A github action created by Ondreian to enable automatic daily logins and monthly simucoin redemptions. Please be sure to read the following below and if you have any questions, please open an issue or reach out on various game related Discord channels.
+
 **ALWAYS USE GITHUB SECRETS**
 
 Secret to be used for account and password are required, game is optional but defaults to GS3. Be sure to set repository to private to avoid Github's cron disabling if no activity within 60 days limitation.
@@ -30,15 +32,17 @@ jobs:
     runs-on: ubuntu-latest
     name: login account
     steps:
-      - uses: ondreian/simu-rewards@v1
+      - uses: elanthia-online/simu-rewards@v1
         with:
           account: ${{ secrets.ACCOUNT1 }}
           password: ${{ secrets.PASSWORD1 }}
-      - uses: ondreian/simu-rewards@v1
+        continue-on-error: true
+      - uses: elanthia-online/simu-rewards@v1
         with:
           account: ${{ secrets.ACCOUNT2 }}
           password: ${{ secrets.PASSWORD2 }}
           game: ${{ secrets.GAMECODE2 }}
+        continue-on-error: true
 ```
 
 # Detail Setup Instructions
@@ -76,15 +80,17 @@ jobs:
     runs-on: ubuntu-latest
     name: login account
     steps:
-      - uses: ondreian/simu-rewards@v1
+      - uses: elanthia-online/simu-rewards@v1
         with:
           account: ${{ secrets.ACCOUNT1 }}
           password: ${{ secrets.PASSWORD1 }}
-      - uses: ondreian/simu-rewards@v1
+        continue-on-error: true
+      - uses: elanthia-online/simu-rewards@v1
         with:
           account: ${{ secrets.ACCOUNT2 }}
           password: ${{ secrets.PASSWORD2 }}
           game: ${{ secrets.GAMECODE2 }}
+        continue-on-error: true
 ```
 
 <img src="images/create_new_code.png" align="center">
