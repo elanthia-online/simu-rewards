@@ -4,7 +4,7 @@ A github action created by Ondreian to enable automatic daily logins and monthly
 
 **ALWAYS USE GITHUB SECRETS**
 
-Secret to be used for account and password are required, game is optional but defaults to GS3. Be sure to set repository to private to avoid Github's cron disabling if no activity within 60 days limitation.
+Secret to be used for account and password are required, game is optional (strongly suggested) but defaults to GS3. Be sure to set repository to private to avoid Github's cron disabling if no activity within 60 days limitation.
 Game Code Options:
 * GS3 - Gemstone Prime
 * GST - Gemstone Test
@@ -27,20 +27,28 @@ on:
     # Below is 01:05 AM UTC, which translates to 8:05 PM EST (Spring/Summer), or 9:05 PM EDT (Fall/Winter)
     # Please update accordingly to stagger server load against Simutronic's systems.
     - cron: "5 1 * * *"
+
 jobs:
   login-account:
     runs-on: ubuntu-latest
-    name: login account
+    strategy:
+      matrix:
+        include:
+          - account: ACCOUNT1
+            password: PASSWORD1
+            game: GAMECODE1  # This one uses its own game code
+          - account: ACCOUNT2
+            password: PASSWORD2
+            # game omitted - will default to GS3
+      fail-fast: false
+
+    name: login ${{ matrix.account }}
     steps:
       - uses: elanthia-online/simu-rewards@v1
         with:
-          account: ${{ secrets.ACCOUNT1 }}
-          password: ${{ secrets.PASSWORD1 }}
-      - uses: elanthia-online/simu-rewards@v1
-        with:
-          account: ${{ secrets.ACCOUNT2 }}
-          password: ${{ secrets.PASSWORD2 }}
-          game: ${{ secrets.GAMECODE2 }}
+          account: ${{ secrets[matrix.account] }}
+          password: ${{ secrets[matrix.password] }}
+          game: ${{ secrets[matrix.game] || 'GS3' }}
 ```
 
 # Detail Setup Instructions
@@ -73,20 +81,27 @@ on:
     # Below is 01:05 AM UTC, which translates to 8:05 PM EST (Spring/Summer), or 9:05 PM EDT (Fall/Winter)
     # Please update accordingly to stagger server load against Simutronic's systems.
     - cron: "5 1 * * *"
+
 jobs:
   login-account:
     runs-on: ubuntu-latest
-    name: login account
+    strategy:
+      matrix:
+        include:
+          - account: ACCOUNT1
+            password: PASSWORD1
+            game: GAMECODE1  # This one uses its own game code
+          - account: ACCOUNT2
+            password: PASSWORD2
+            # game omitted - will default to GS3
+      fail-fast: false
+    name: login ${{ matrix.account }}
     steps:
       - uses: elanthia-online/simu-rewards@v1
         with:
-          account: ${{ secrets.ACCOUNT1 }}
-          password: ${{ secrets.PASSWORD1 }}
-      - uses: elanthia-online/simu-rewards@v1
-        with:
-          account: ${{ secrets.ACCOUNT2 }}
-          password: ${{ secrets.PASSWORD2 }}
-          game: ${{ secrets.GAMECODE2 }}
+          account: ${{ secrets[matrix.account] }}
+          password: ${{ secrets[matrix.password] }}
+          game: ${{ secrets[matrix.game] || 'GS3' }}
 ```
 
 <img src="images/create_new_code.png" align="center">
