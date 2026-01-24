@@ -36,13 +36,11 @@ jobs:
         with:
           account: ${{ secrets.ACCOUNT1 }}
           password: ${{ secrets.PASSWORD1 }}
-        continue-on-error: true
       - uses: elanthia-online/simu-rewards@v1
         with:
           account: ${{ secrets.ACCOUNT2 }}
           password: ${{ secrets.PASSWORD2 }}
           game: ${{ secrets.GAMECODE2 }}
-        continue-on-error: true
 ```
 
 # Detail Setup Instructions
@@ -84,13 +82,11 @@ jobs:
         with:
           account: ${{ secrets.ACCOUNT1 }}
           password: ${{ secrets.PASSWORD1 }}
-        continue-on-error: true
       - uses: elanthia-online/simu-rewards@v1
         with:
           account: ${{ secrets.ACCOUNT2 }}
           password: ${{ secrets.PASSWORD2 }}
           game: ${{ secrets.GAMECODE2 }}
-        continue-on-error: true
 ```
 
 <img src="images/create_new_code.png" align="center">
