@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.0](https://github.com/elanthia-online/simu-rewards/compare/v1.2.4...v1.3.0) (2026-01-25)
+
+
+### Features
+
+* add support to bypass_logins ([#3](https://github.com/elanthia-online/simu-rewards/issues/3)) ([ed54e72](https://github.com/elanthia-online/simu-rewards/commit/ed54e728b324076028ecf81b7d051d8366b646c0))
+
+
+### Bug Fixes
+
+* ellipsis suggestions ([8c67611](https://github.com/elanthia-online/simu-rewards/commit/8c67611714f1bcc10184d10e803852f0d362355d))
+
 ## [1.3.0](https://github.com/mrhoribu/simu-rewards/compare/v1.2.4...v1.3.0) (2026-01-25)
 
 
