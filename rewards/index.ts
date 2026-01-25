@@ -52,7 +52,7 @@ async function retryCharacterLogin(
   throw new Error(`${character.name} failed after ${maxAttempts} attempts`)
 }
 
-export async function claim (account?: string, password?: string, gameCode?: GameCode) {
+export async function claim (account?: string, password?: string, gameCode?: GameCode, bypassLogin?: boolean) {
   if (!account) {
     throw new Error("account was missing")
   }
@@ -64,6 +64,9 @@ export async function claim (account?: string, password?: string, gameCode?: Gam
   if (!gameCode) {
     throw new Error("game was missing")
   }
+
+  // Check environment variable if parameter not provided
+  const shouldBypassLogin = bypassLogin ?? (process.env.BYPASS_LOGIN === 'true')
 
   const errors: string[] = []
   const ok: string[] = []
@@ -77,6 +80,12 @@ export async function claim (account?: string, password?: string, gameCode?: Gam
   } catch (err: any) {
     console.error(err)
     errors.push(err.message)
+  }
+
+  // Skip character logins if bypass flag is set
+  if (shouldBypassLogin) {
+    console.log('Bypassing character logins (BYPASS_LOGIN=true)')
+    return {ok, errors}
   }
 
   // Get all characters
