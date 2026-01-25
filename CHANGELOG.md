@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.1](https://github.com/elanthia-online/simu-rewards/compare/v1.3.0...v1.3.1) (2026-01-25)
+
+
+### Bug Fixes
+
+* game.ts retry logic incase of timeout ([ecea268](https://github.com/elanthia-online/simu-rewards/commit/ecea26815f1e0448004d6f2a5843b85707e0a17a))
+* game.ts retry logic incase of timeout ([#5](https://github.com/elanthia-online/simu-rewards/issues/5)) ([0e72893](https://github.com/elanthia-online/simu-rewards/commit/0e72893158c7aa24c950e3c41a17b261260bb037))
+
 ## [1.3.0](https://github.com/elanthia-online/simu-rewards/compare/v1.2.4...v1.3.0) (2026-01-25)
 
 
