@@ -52,7 +52,7 @@ async function retryCharacterLogin(
   throw new Error(`${character.name} failed after ${maxAttempts} attempts`)
 }
 
-export async function claim (account?: string, password?: string, gameCode?: GameCode, bypassLogin?: boolean) {
+export async function claim (account?: string, password?: string, gameCode?: GameCode, bypassLogin?: boolean | string) {
   if (!account) {
     throw new Error("account was missing")
   }
@@ -65,8 +65,11 @@ export async function claim (account?: string, password?: string, gameCode?: Gam
     throw new Error("game was missing")
   }
 
-  // Check environment variable if parameter not provided
-  const shouldBypassLogin = bypassLogin ?? (process.env.BYPASS_LOGIN === 'true')
+  // Check environment variable if parameter not provided, defaults to false
+  // Handle both boolean and string values to avoid string 'false' being truthy
+  const shouldBypassLogin = bypassLogin !== undefined 
+    ? (bypassLogin === 'true' || bypassLogin === true)
+    : (process.env.BYPASS_LOGIN === 'true')
 
   const errors: string[] = []
   const ok: string[] = []
