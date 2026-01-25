@@ -5,6 +5,7 @@ A github action created by Ondreian to enable automatic daily logins and monthly
 **ALWAYS USE GITHUB SECRETS**
 
 Secret to be used for account and password are required, game is optional (strongly suggested) but defaults to GS3. Be sure to set repository to private to avoid Github's cron disabling if no activity within 60 days limitation.
+
 Game Code Options:
 * GS3 - Gemstone Prime
 * GST - Gemstone Test
