@@ -5,6 +5,7 @@ A github action created by Ondreian to enable automatic daily logins and monthly
 **ALWAYS USE GITHUB SECRETS**
 
 Secret to be used for account and password are required, game is optional (strongly suggested) but defaults to GS3. Be sure to set repository to private to avoid Github's cron disabling if no activity within 60 days limitation.
+
 Game Code Options:
 * GS3 - Gemstone Prime
 * GST - Gemstone Test
@@ -14,6 +15,8 @@ Game Code Options:
 * DRT - DragonRealms Test
 * DRX - DragonRealms Platinum
 * DRF - DragonRealms Fallen
+
+You can also choose to bypass character logins and only do simucoin redemption with usage of bypass_login
 
 example usage with CRON (Times in UTC):
 
@@ -36,10 +39,16 @@ jobs:
         include:
           - account: ACCOUNT1
             password: PASSWORD1
-            game: GAMECODE1  # This one uses its own game code
+            game: GAMECODE1  # This one uses its own SECRETs game code
           - account: ACCOUNT2
             password: PASSWORD2
             # game omitted - will default to GS3
+          - account: ACCOUNT3
+            password: PASSWORD3
+            game: 'GSF' # This one just hardcodes the game type, no secret usage
+          - account: ACCOUNT4
+            password: PASSWORD4
+            bypass_login: true  # bypass character logins, only process simucoins, good for GSF/DRF
       fail-fast: false
 
     name: login ${{ matrix.account }}
@@ -48,7 +57,8 @@ jobs:
         with:
           account: ${{ secrets[matrix.account] }}
           password: ${{ secrets[matrix.password] }}
-          game: ${{ secrets[matrix.game] || 'GS3' }}
+          game: ${{ secrets[matrix.game] || matrix.game || 'GS3' }}
+          bypass_login: ${{ secrets[matrix.bypass_login] || matrix.bypass_login || 'false' }}
 ```
 
 # Detail Setup Instructions
@@ -101,7 +111,8 @@ jobs:
         with:
           account: ${{ secrets[matrix.account] }}
           password: ${{ secrets[matrix.password] }}
-          game: ${{ secrets[matrix.game] || 'GS3' }}
+          game: ${{ secrets[matrix.game] || matrix.game || 'GS3' }}
+          bypass_login: ${{ secrets[matrix.bypass_login] || matrix.bypass_login || 'false' }}
 ```
 
 <img src="images/create_new_code.png" align="center">
