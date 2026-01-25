@@ -11,6 +11,10 @@ inputs:
     description: 'game code'
     required: false
     default: 'GS3'
+  bypass_login:
+    description: 'bypass character logins, good for Shattered/Fallen to collect coins but not login characters'
+    required: false
+    default: false
 runs:
   using: "composite"
   steps:
@@ -27,4 +31,4 @@ runs:
         ACCOUNT: ${{ inputs.account }}
         PASSWORD: ${{ inputs.password }}
         GAME_CODE: ${{ inputs.game }}
-
+        BYPASS_LOGIN: ${{ inputs.bypass_login }}
