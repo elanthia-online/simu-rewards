@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.2](https://github.com/elanthia-online/simu-rewards/compare/v1.3.1...v1.3.2) (2026-02-28)
+
+
+### Bug Fixes
+
+* account.ts form submission use proper GS/DR game ([64aa095](https://github.com/elanthia-online/simu-rewards/commit/64aa09571fb4887f1709c8aaf3ffa7aed2f29ec3))
+* account.ts form submission use proper GS/DR game ([#7](https://github.com/elanthia-online/simu-rewards/issues/7)) ([a931dc9](https://github.com/elanthia-online/simu-rewards/commit/a931dc9c792f1bdf94097119eb521d438235f6e7))
+
 ## [1.3.1](https://github.com/elanthia-online/simu-rewards/compare/v1.3.0...v1.3.1) (2026-01-25)
 
 
