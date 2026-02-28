@@ -78,7 +78,11 @@ export async function claimAccountRewards (account : string, password: string, g
   
   const data = [...state.cheerio(`form[action='/Store/ClaimReward'] input`)]
   const form = new FormData()
-  form.set("game", "GS")
+  if (gameCode.startsWith("GS")) {
+    form.set("game", "GS")
+  } else {
+    form.set("game", "DR")
+  }
   const claim = await fetchWithCookies(claimReward, {
     method: "POST",
     body: form,
