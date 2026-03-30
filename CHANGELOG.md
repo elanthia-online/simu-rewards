@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.3](https://github.com/elanthia-online/simu-rewards/compare/v1.3.2...v1.3.3) (2026-03-30)
+
+
+### Bug Fixes
+
+* update actions to latest ([#9](https://github.com/elanthia-online/simu-rewards/issues/9)) ([dfed096](https://github.com/elanthia-online/simu-rewards/commit/dfed096f8f34c30fa9063ab071a2364cd469238a))
+
 ## [1.3.2](https://github.com/elanthia-online/simu-rewards/compare/v1.3.1...v1.3.2) (2026-02-28)
 
 
