@@ -65,7 +65,7 @@ jobs:
 
 1. Create a GitHub account and upon logging in, create a new GitHub __**PRIVATE**__ repository by going to https://github.com/new
 <img src="images/create_new_repository.png" align="center" >
-2. After creating the new repository, you'll want to add repository secrets for each account you'll want to have processed. To do this, go to the Settings of the newly created repository, then to Secrets and variables, then selection Actions under that. From here create an ACCOUNT1, PASSWORD1, GAMECODE1 and populate each with the appropriate information. Repeat for each additional account by increasing the nubmer associated to the new account you wish to add.
+2. After creating the new repository, you'll want to add repository secrets for each account you'll want to have processed. To do this, go to the Settings of the newly created repository, then to Secrets and variables, then selection Actions under that. From here you'll want to create repository secrets for ACCOUNT1, PASSWORD1, GAMECODE1 and populate each with the appropriate information. Repeat for each additional account by increasing the nubmer associated to the new account you wish to add.
 
 Game Code Options:
 * GS3 - Gemstone Prime
