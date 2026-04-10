@@ -1,34 +1,68 @@
-# Daily Simutronic Rewards
+# Daily Simutronics Rewards
 
-A github action created by Ondreian to enable automatic daily logins and monthly simucoin redemptions. Please be sure to read the following below and if you have any questions, please open an issue or reach out on various game related Discord channels.
+A GitHub Action created by Ondreian to automate daily logins and monthly SimuCoin redemptions for Simutronics games.
 
-**ALWAYS USE GITHUB SECRETS**
+> **Questions?** Open an [issue](https://github.com/elanthia-online/simu-rewards/issues) or reach out on game-related Discord channels.
 
-Secret to be used for account and password are required, game is optional (strongly suggested) but defaults to GS3. Be sure to set repository to private to avoid Github's cron disabling if no activity within 60 days limitation.
+---
 
-Game Code Options:
-* GS3 - Gemstone Prime
-* GST - Gemstone Test
-* GSX - Gemstone Platinum
-* GSF - Gemstone Shattered
-* DR  - DragonRealms Prime
-* DRT - DragonRealms Test
-* DRX - DragonRealms Platinum
-* DRF - DragonRealms Fallen
+## Setup Instructions
 
-You can also choose to bypass character logins and only do simucoin redemption with usage of bypass_login
+### 1. Create a Private Repository
 
-example usage with CRON (Times in UTC):
+Go to [github.com/new](https://github.com/new) and create a new **private** repository.
+
+> **Why private?** GitHub automatically disables scheduled workflows in public repos with no activity for 60 days. A private repo avoids this.
+
+![Create new repository](images/create_new_repository.png)
+
+### 2. Add Repository Secrets
+
+Your Simutronics credentials are stored as encrypted [GitHub Secrets](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions) — they are never exposed in logs or code.
+
+Navigate to **Settings → Secrets and variables → Actions**, then click **New repository secret** to add each of the following:
+
+| Secret Name | Value |
+|---|---|
+| `ACCOUNT1` | Your Simutronics account name |
+| `PASSWORD1` | Your Simutronics password |
+| `GAMECODE1` | A game code from the table below *(optional — defaults to `GS3`)* |
+
+Repeat for each additional account, incrementing the number (`ACCOUNT2` / `PASSWORD2` / `GAMECODE2`, etc.).
+
+#### Game Codes
+
+| Code | Game |
+|---|---|
+| `GS3` | GemStone IV Prime |
+| `GST` | GemStone IV Test |
+| `GSX` | GemStone IV Platinum |
+| `GSF` | GemStone IV Shattered |
+| `DR` | DragonRealms Prime |
+| `DRT` | DragonRealms Test |
+| `DRX` | DragonRealms Platinum |
+| `DRF` | DragonRealms Fallen |
+
+### 3. Create the Workflow File
+
+From the **Code** tab of your repository, click **Add file → Create new file**.
+
+Name the file `.github/workflows/rewards.yml` — GitHub will automatically expand the directory structure as you type.
+
+![Create new file](images/create_new_file.png)
+
+Paste the following into the file editor, then adjust for your accounts (see the comments in the YAML):
 
 ```yaml
-#.github/workflows/rewards.yml
+# .github/workflows/rewards.yml
 name: rewards
+
 on:
-  workflow_dispatch:
+  workflow_dispatch:   # allows manual runs from the Actions tab
   schedule:
-    # CRON Generator Link: https://crontab.guru/#5_1_*_*_*
-    # Below is 01:05 AM UTC, which translates to 8:05 PM EST (Spring/Summer), or 9:05 PM EDT (Fall/Winter)
-    # Please update accordingly to stagger server load against Simutronic's systems.
+    # Cron generator: https://crontab.guru/#5_1_*_*_*
+    # 01:05 AM UTC = 8:05 PM EST (summer) / 9:05 PM EST (winter)
+    # Please stagger your time to spread server load.
     - cron: "5 1 * * *"
 
 jobs:
@@ -37,84 +71,69 @@ jobs:
     strategy:
       matrix:
         include:
+          # ── Account 1: uses a GAMECODE1 secret ──
           - account: ACCOUNT1
             password: PASSWORD1
-            game: GAMECODE1  # This one uses its own SECRETs game code
+            game: GAMECODE1
+
+          # ── Account 2: no game code → defaults to GS3 ──
           - account: ACCOUNT2
             password: PASSWORD2
-            # game omitted - will default to GS3
+
+          # ── Account 3: hardcoded game code (no secret needed) ──
           - account: ACCOUNT3
             password: PASSWORD3
-            game: 'GSF' # This one just hardcodes the game type, no secret usage
+            game: 'GSF'
+
+          # ── Account 4: skip character logins, only redeem SimuCoins ──
           - account: ACCOUNT4
             password: PASSWORD4
-            bypass_login: true  # bypass character logins, only process simucoins, good for GSF/DRF
+            bypass_login: true
+
       fail-fast: false
 
     name: login ${{ matrix.account }}
     steps:
       - uses: elanthia-online/simu-rewards@v1
         with:
-          account: ${{ secrets[matrix.account] }}
-          password: ${{ secrets[matrix.password] }}
-          game: ${{ secrets[matrix.game] || matrix.game || 'GS3' }}
+          account:      ${{ secrets[matrix.account] }}
+          password:     ${{ secrets[matrix.password] }}
+          game:         ${{ secrets[matrix.game] || matrix.game || 'GS3' }}
           bypass_login: ${{ secrets[matrix.bypass_login] || matrix.bypass_login || 'false' }}
 ```
 
-# Detail Setup Instructions
+Remove or duplicate the `- account: …` blocks in `matrix.include` to match however many accounts you added secrets for in Step 2.
 
-1. Create a GitHub account and upon logging in, create a new GitHub __**PRIVATE**__ repository by going to https://github.com/new
-<img src="images/create_new_repository.png" align="center" >
-2. After creating the new repository, you'll want to add repository secrets for each account you'll want to have processed. To do this, go to the Settings of the newly created repository, then to Secrets and variables, then selection Actions under that. From here you'll want to create repository secrets for ACCOUNT1, PASSWORD1, GAMECODE1 and populate each with the appropriate information. Repeat for each additional account by increasing the nubmer associated to the new account you wish to add.
+![Create new code](images/create_new_code.png)
 
-Game Code Options:
-* GS3 - Gemstone Prime
-* GST - Gemstone Test
-* GSX - Gemstone Platinum
-* GSF - Gemstone Shattered
-* DR  - DragonRealms Prime
-* DRT - DragonRealms Test
-* DRX - DragonRealms Platinum
-* DRF - DragonRealms Fallen
+Click **Commit changes** to save the file.
 
-3. Next you'll want to create the github action that does all the magic. To do this, create a new file under the Code view of your repository as shown
-<img src="images/create_new_file.png" align="center">
-4. On the next page, copy/paste the rewards.yml example code into the newly file window and commit changes. Take note on the fact you need to duplicate/modify the "steps" section depending on how many accounts you added. Also do not forget to update the CRON time if you do not want the job to run at 1:05AM UTC. Be sure to name your file .github/workflows/rewards.yml. It should expand out automatically as shown here
+### 4. Run It
 
-```yaml
-#.github/workflows/rewards.yml
-name: rewards
-on:
-  workflow_dispatch:
-  schedule:
-    # CRON Generator Link: https://crontab.guru/#5_1_*_*_*
-    # Below is 01:05 AM UTC, which translates to 8:05 PM EST (Spring/Summer), or 9:05 PM EDT (Fall/Winter)
-    # Please update accordingly to stagger server load against Simutronic's systems.
-    - cron: "5 1 * * *"
+The workflow will run automatically at the scheduled cron time. To run it immediately, go to **Actions → rewards → Run workflow**.
 
-jobs:
-  login-account:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - account: ACCOUNT1
-            password: PASSWORD1
-            game: GAMECODE1  # This one uses its own game code
-          - account: ACCOUNT2
-            password: PASSWORD2
-            # game omitted - will default to GS3
-      fail-fast: false
-    name: login ${{ matrix.account }}
-    steps:
-      - uses: elanthia-online/simu-rewards@v1
-        with:
-          account: ${{ secrets[matrix.account] }}
-          password: ${{ secrets[matrix.password] }}
-          game: ${{ secrets[matrix.game] || matrix.game || 'GS3' }}
-          bypass_login: ${{ secrets[matrix.bypass_login] || matrix.bypass_login || 'false' }}
-```
+![Run workflow](images/run_new_workflow.png)
 
-<img src="images/create_new_code.png" align="center">
-5. You are now done. You can either wait till the next CRON time for it to automatically run, or you can manually kick off a run by going to Actions -> rewards and then run the workflow.
-<img src="images/run_new_workflow.png" align="center">
+---
+
+## Configuration Reference
+
+### `game`
+
+The game code can be provided three ways (checked in this order):
+
+1. **As a secret** — set a `GAMECODE1` repository secret (most secure, recommended for shared repos)
+2. **Hardcoded in the matrix** — e.g. `game: 'GSF'` (simple, visible in the workflow file)
+3. **Omitted** — defaults to `GS3`
+
+### `bypass_login`
+
+Set `bypass_login: true` on an account to skip character logins and only process SimuCoin redemptions. This is useful for instance-limited games like Shattered (`GSF`) or Fallen (`DRF`).
+
+---
+
+## Troubleshooting
+
+**Workflow isn't running on schedule** — GitHub may disable scheduled workflows after 60 days of no repository activity. Push a commit or run the workflow manually to re-enable it. Using a private repo reduces (but doesn't eliminate) this risk.
+
+**Login failures** — Double-check that your secret names in the workflow YAML exactly match the secret names you created in Settings. Names are case-sensitive.
