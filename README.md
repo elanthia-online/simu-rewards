@@ -130,6 +130,39 @@ The game code can be provided three ways (checked in this order):
 
 Set `bypass_login: true` on an account to skip character logins and only process SimuCoin redemptions. This is useful for instance-limited games like Shattered (`GSF`) or Fallen (`DRF`).
 
+### `schedule` (cron)
+
+The `cron` line in the workflow controls when your rewards are collected. **You should change it from the default** to a time that works for you and to help spread the load across Simutronics' servers — if everyone runs at the same minute, it creates unnecessary strain.
+
+A cron expression has five fields:
+
+```
+┌───────────── minute (0–59)
+│ ┌───────────── hour (0–23)
+│ │ ┌───────────── day of month (1–31)
+│ │ │ ┌───────────── month (1–12)
+│ │ │ │ ┌───────────── day of week (0–6, Sunday = 0)
+│ │ │ │ │
+* * * * *
+```
+
+The default in the example is `"5 1 * * *"`, which means 1:05 AM UTC every day. All GitHub Actions cron times are in **UTC** — use a converter like [dateful.com/time-zone-converter](https://dateful.com/time-zone-converter) if you need to work out your local equivalent.
+
+#### Common examples
+
+| Cron expression | Runs at (UTC) |
+|---|---|
+| `"5 1 * * *"` | 1:05 AM — the example default |
+| `"30 3 * * *"` | 3:30 AM |
+| `"0 12 * * *"` | 12:00 PM (noon) |
+| `"45 22 * * *"` | 10:45 PM |
+
+**Pick a random-ish minute** (not `:00` or `:30`) so runs are naturally staggered. The hour matters less — just avoid picking the exact same time as the example default.
+
+Use [crontab.guru](https://crontab.guru/) to build and verify your expression before committing.
+
+> **Note:** GitHub does not guarantee cron jobs run at the exact scheduled time. During periods of high demand, runs may be delayed by several minutes or occasionally longer. This is normal and will not cause missed rewards.
+
 ---
 
 ## Troubleshooting
