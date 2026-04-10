@@ -14,7 +14,7 @@ Go to [github.com/new](https://github.com/new) and create a new **private** repo
 
 > **Why private?** GitHub automatically disables scheduled workflows in public repos with no activity for 60 days. A private repo avoids this.
 
-![Create new repository](images/create_new_repository.png)
+Give it any name you like (e.g. `my-simu-rewards`), set the visibility to **Private**, and click **Create repository**.
 
 ### 2. Add Repository Secrets
 
@@ -47,9 +47,7 @@ Repeat for each additional account, incrementing the number (`ACCOUNT2` / `PASSW
 
 From the **Code** tab of your repository, click **Add file → Create new file**.
 
-Name the file `.github/workflows/rewards.yml` — GitHub will automatically expand the directory structure as you type.
-
-![Create new file](images/create_new_file.png)
+Name the file `.github/workflows/rewards.yml` — as you type the slashes, GitHub will automatically create the nested directory structure for you.
 
 Paste the following into the file editor, then adjust for your accounts (see the comments in the YAML):
 
@@ -104,15 +102,13 @@ jobs:
 
 Remove or duplicate the `- account: …` blocks in `matrix.include` to match however many accounts you added secrets for in Step 2.
 
-![Create new code](images/create_new_code.png)
+You should also update the `cron` line to a time that works for you — the default (`"5 1 * * *"` / 1:05 AM UTC) is just an example, and staggering run times helps avoid unnecessary load on Simutronics' servers. See the [`schedule` (cron)](#schedule-cron) section below for a full breakdown of the syntax and common examples.
 
-Click **Commit changes** to save the file.
+When you're done editing, click the green **Commit changes** button in the top right, confirm in the dialog, and the file will be saved to your repository.
 
 ### 4. Run It
 
-The workflow will run automatically at the scheduled cron time. To run it immediately, go to **Actions → rewards → Run workflow**.
-
-![Run workflow](images/run_new_workflow.png)
+The workflow will run automatically at the scheduled cron time. To trigger it immediately, go to the **Actions** tab at the top of your repository, click **rewards** in the left sidebar, then click the **Run workflow** dropdown on the right and confirm.
 
 ---
 
