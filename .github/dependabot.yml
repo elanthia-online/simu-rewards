@@ -1,0 +1,18 @@
+version: 2
+updates:
+  # Covers .github/workflows/*.yml and the root action.yml
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+  - package-ecosystem: bun
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      bun:
+        patterns: ["*"]
