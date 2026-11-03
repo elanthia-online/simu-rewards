@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.3.4](https://github.com/elanthia-online/simu-rewards/compare/v1.3.3...v1.3.4) (2026-11-03)
+
+
+### Bug Fixes
+
+* handle each eAccess read as one reply again ([25cf5d6](https://github.com/elanthia-online/simu-rewards/commit/25cf5d620c1f79f6dbc27e0156460b1d4f384106))
+* refresh dependencies and make action install reproducible ([57366f9](https://github.com/elanthia-online/simu-rewards/commit/57366f97378c921fa4bdfb6f39c75bded6eb3013))
+* refresh dependencies and make action install reproducible ([#14](https://github.com/elanthia-online/simu-rewards/issues/14)) ([4e3c648](https://github.com/elanthia-online/simu-rewards/commit/4e3c6485d3f867868fb44155efe8a892cf90f199))
+* reject eAccess/game failures cleanly and clean up sockets and timers ([c92792b](https://github.com/elanthia-online/simu-rewards/commit/c92792b85d168b5d7570a74d45b42628f17871e8))
+
 ## [1.3.3](https://github.com/elanthia-online/simu-rewards/compare/v1.3.2...v1.3.3) (2026-03-30)
 
 
