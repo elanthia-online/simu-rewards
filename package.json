@@ -2,14 +2,18 @@
   "name": "daily-simu",
   "module": "index.ts",
   "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },
   "peerDependencies": {
-    "typescript": "^5.0.0"
+    "typescript": "^5.4.5"
   },
   "dependencies": {
-    "cheerio": "^1.0.0-rc.12",
-    "fetch-cookie": "^3.0.1"
+    "cheerio": "^1.2.0",
+    "fetch-cookie": "^3.2.0"
   }
 }
