@@ -78,8 +78,6 @@ export function parseGameList (incoming : string) : Record<string, string> {
 export interface SessionOptions {
   /** give up on the whole eAccess exchange after this long (default 30s) */
   timeoutMs?: number
-  /** how long to wait for the rest of a reply that arrived without a trailing newline (default 1s) */
-  partialReplyMs?: number
 }
 
 interface Session<T> {
@@ -88,41 +86,10 @@ interface Session<T> {
   reject: (error: Error) => void
 }
 
-// Splits the stream into newline-terminated replies, so a reply split across
-// TCP packets (or two replies in one packet) is handled as whole messages.
-// A trailing fragment with no newline is still delivered once no more data
-// arrives for `idleMs`, preserving the old one-packet-per-reply behaviour.
-function lineFramer (onReply : (reply : string) => void, idleMs : number) {
-  let buffer = ""
-  let idle : ReturnType<typeof setTimeout> | undefined
-
-  const flush = () => {
-    if (!buffer) return
-    const reply = buffer
-    buffer = ""
-    onReply(reply)
-  }
-
-  return {
-    push (chunk : string) {
-      clearTimeout(idle)
-      buffer += chunk
-      let newline : number
-      while ((newline = buffer.indexOf("\n")) !== -1) {
-        const reply = buffer.slice(0, newline + 1)
-        buffer = buffer.slice(newline + 1)
-        onReply(reply)
-      }
-      if (buffer) idle = setTimeout(flush, idleMs)
-    },
-    stop () {
-      clearTimeout(idle)
-    },
-  }
-}
-
 // Runs one authenticated eAccess exchange. `onReply` receives each reply after
-// the account is authenticated and the game is selected. The returned promise
+// the account is authenticated and the game is selected. Each TCP read is one
+// reply: eAccess replies are not reliably newline-terminated, so (like lich-5
+// and the official launcher) there is no framing beyond that. The returned promise
 // settles exactly once; every exit path (result, protocol error, exception in
 // a handler, socket error or close, timeout) destroys the socket and clears
 // the timers.
@@ -133,13 +100,12 @@ function session<T> (
   onReply : (reply : string, session : Session<T>) => void,
   options : SessionOptions = {},
 ) : Promise<T> {
-  const { timeoutMs = 30_000, partialReplyMs = 1000 } = options
+  const { timeoutMs = 30_000 } = options
 
   return new Promise<T>((resolve, reject) => {
     let state = State.Starting
     let settled = false
     let timeout : ReturnType<typeof setTimeout> | undefined
-    let framer : ReturnType<typeof lineFramer> | undefined
     let sge : tls.TLSSocket | undefined
 
     const finish = (error : Error | null, value? : T) => {
@@ -147,7 +113,6 @@ function session<T> (
       settled = true
       state = State.Finished
       clearTimeout(timeout)
-      framer?.stop()
       sge?.destroy()
       if (error) reject(error)
       else resolve(value as T)
@@ -192,24 +157,15 @@ function session<T> (
         reject: error => finish(error),
       }
 
-      framer = lineFramer(reply => {
-        try {
-          handleReply(reply, ctx)
-        } catch (err) {
-          fail(err)
-        }
-      }, partialReplyMs)
-
       socket.on("data", (data : Buffer) => {
         try {
           if (state === State.Starting) {
-            // The hash key is read as the first raw chunk, as the official
-            // launcher and lich-5 both do; it is not newline-framed.
+            // the first reply is the hash key used to mask the password
             state = State.Handshaking
             sendAccountDetails(socket, account, password, data.toString()).catch(fail)
             return
           }
-          framer!.push(data.toString())
+          handleReply(data.toString(), ctx)
         } catch (err) {
           fail(err)
         }

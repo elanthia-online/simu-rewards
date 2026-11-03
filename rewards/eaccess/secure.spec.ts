@@ -115,36 +115,31 @@ describe("getOTP", () => {
   })
 })
 
-describe("eAccess reply framing", () => {
-  test("replies split across several packets are reassembled", async () => {
-    const sge = installFakeSGE({
-      account: "testacct", password: "hunter2", gameCode: "GS3", characters,
-      gameHost: "storm.gs4.game.play.net", gamePort: 10024, gameKey: "abc123",
-      chunkSize: 7,
-    })
+describe("replies without a trailing newline (as the live server sends them)", () => {
+  // Regression guard: newline-framing the replies made every live login step
+  // wait out a fallback delay (~1s per reply). Replies must be handled as they arrive.
+  const base = {
+    account: "testacct", password: "hunter2", gameCode: "GS3", characters,
+    gameHost: "storm.gs4.game.play.net", gamePort: 10024, gameKey: "abc123",
+    newline: false,
+  }
+
+  test("listCharacters completes promptly", async () => {
+    const sge = installFakeSGE(base)
+    const started = performance.now()
 
     await expect(sge.run(listCharacters("testacct", "hunter2", GameCode.GS4))).resolves.toEqual(characters)
+    expect(performance.now() - started).toBeLessThan(250)
   })
 
-  test("a split launch reply still yields the full key, host and port", async () => {
-    const sge = installFakeSGE({
-      account: "testacct", password: "hunter2", gameCode: "GS3", characters,
-      gameHost: "storm.gs4.game.play.net", gamePort: 10024, gameKey: "abc123",
-      chunkSize: 5,
-    })
+  test("getOTP completes promptly", async () => {
+    const sge = installFakeSGE(base)
+    const started = performance.now()
 
     await expect(sge.run(getOTP("testacct", "hunter2", GameCode.GS4, "Alpha"))).resolves.toEqual({
       key: "abc123", host: "storm.gs4.game.play.net", port: 10024,
     })
-  })
-
-  test("a reply without a trailing newline is still handled", async () => {
-    const sge = installFakeSGE({
-      account: "testacct", password: "hunter2", gameCode: "GS3", characters,
-      overrides: { C: "C\t1\t1\t0\t0\tW_TESTACCT_000\tAlpha" },
-    })
-
-    await expect(sge.run(listCharacters("testacct", "hunter2", GameCode.GS4, { partialReplyMs: 50 }))).resolves.toEqual([characters[0]])
+    expect(performance.now() - started).toBeLessThan(250)
   })
 })
 

@@ -17,8 +17,8 @@ export interface FakeSGEOptions {
   gameKey?: string
   /** override the reply to a given client message (by its leading letter); null = never reply */
   overrides?: Record<string, string | null>
-  /** deliver each command reply (not the hash key) in pieces of this many bytes, as separate 'data' events */
-  chunkSize?: number
+  /** end each command reply with "\n" (default) or not; the live server does not reliably send one */
+  newline?: boolean
   /** called with the fake socket once connected, e.g. to emit 'error' or 'close' */
   onConnect?: (socket: EventEmitter) => void
 }
@@ -68,13 +68,10 @@ export function installFakeSGE(opts: FakeSGEOptions): FakeSGE {
         failRun(error)
       }
     }
-    // `whole` replies are never split: the client reads the hash key as one raw chunk
-    const reply = (text: string | null, whole = false) => {
+    const reply = (text: string | null) => {
       if (text === null) return
-      const size = whole ? text.length : opts.chunkSize ?? text.length
-      const pieces = text.length ? text.match(new RegExp(`[\\s\\S]{1,${size}}`, "g"))! : [""]
-      // one event-loop turn per piece, so each arrives as its own 'data' event
-      pieces.reduce((after, piece) => after.then(() => new Promise<void>(r => setTimeout(() => { emitData(piece); r() }, 0))), Promise.resolve())
+      const out = opts.newline === false ? text.replace(/\n$/, "") : text
+      setTimeout(() => emitData(out), 0)
     }
 
     sock.destroy = () => {
@@ -91,7 +88,7 @@ export function installFakeSGE(opts: FakeSGEOptions): FakeSGE {
       const override = opts.overrides?.[msg[0]]
       if (override !== undefined) return reply(override), true
 
-      if (msg === "K") return reply(MASK, true), true
+      if (msg === "K") return reply(MASK), true
       if (msg.startsWith("A\t")) {
         const [, account, ...rest] = msg.split("\t")
         const password = unmask(Buffer.from(rest.join("\t"), "latin1"))
