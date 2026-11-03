@@ -7,16 +7,21 @@ const otp = (name: string) => ({ key: `key-${name}`, host: "127.0.0.1", port: 1 
 
 const realSetTimeout = globalThis.setTimeout
 let savedBypass: string | undefined
+// when true, the 60s per-character login timeout fires after 5ms instead of never
+let fireLongTimers = false
 
 beforeEach(() => {
   savedBypass = process.env.BYPASS_LOGIN
   delete process.env.BYPASS_LOGIN
   for (const level of ["log", "warn", "error"] as const) spyOn(console, level).mockImplementation(() => {})
-  // claim() waits 500ms between characters and 2s between retries, and races each
-  // login against a 60s timeout. Run the short waits immediately and drop the 60s
-  // timer so the suite stays fast and leaves nothing pending.
+  // claim() waits 500ms between characters and 2s between retries, and caps each
+  // game login at 60s. Run the short waits immediately; the 60s cap is dropped
+  // unless a test sets fireLongTimers.
+  fireLongTimers = false
   spyOn(globalThis, "setTimeout").mockImplementation(((fn: () => void, ms?: number) =>
-    (ms ?? 0) >= 60_000 ? realSetTimeout(() => {}, 0) : realSetTimeout(fn, 0)) as any)
+    (ms ?? 0) >= 60_000
+      ? (fireLongTimers ? realSetTimeout(fn, 5) : realSetTimeout(() => {}, 0))
+      : realSetTimeout(fn, 0)) as any)
 })
 
 afterEach(() => {
@@ -123,5 +128,42 @@ describe("claim with character logins", () => {
 
     expect(result.errors).toEqual(["account:testacct | something weird happened"])
     expect(result.ok).toEqual(["Alpha > 50 silvers"])
+  })
+
+  test("the 60s cap aborts a hung game login and its retries are recorded", async () => {
+    fireLongTimers = true
+    spyOn(Account, "claimAccountRewards").mockResolvedValue(accountOk)
+    spyOn(SGE.Secure, "listCharacters").mockResolvedValue([{ slot: "W_0", name: "Alpha" }])
+    spyOn(SGE.Secure, "getOTP").mockResolvedValue(otp("Alpha"))
+    const signals: AbortSignal[] = []
+    const useOTP = spyOn(Game, "useOTP").mockImplementation((_otp, options) => {
+      const signal = options!.signal!
+      signals.push(signal)
+      // never completes on its own; only the abort ends it
+      return new Promise((_, reject) => signal.addEventListener("abort", () => reject(signal.reason)))
+    })
+
+    const result = await claim("testacct", "pw", GameCode.GS4)
+
+    expect(useOTP).toHaveBeenCalledTimes(3)
+    expect(signals.every(s => s.aborted)).toBe(true)
+    expect(result.errors).toEqual(["Alpha: Timeout after 60000ms"])
+  })
+
+  test("a successful game login clears its 60s cap", async () => {
+    fireLongTimers = true
+    spyOn(Account, "claimAccountRewards").mockResolvedValue(accountOk)
+    spyOn(SGE.Secure, "listCharacters").mockResolvedValue([{ slot: "W_0", name: "Alpha" }])
+    spyOn(SGE.Secure, "getOTP").mockResolvedValue(otp("Alpha"))
+    let signal: AbortSignal | undefined
+    spyOn(Game, "useOTP").mockImplementation(async (_otp, options) => {
+      signal = options!.signal
+      return { message: "50 silvers" }
+    })
+
+    await claim("testacct", "pw", GameCode.GS4)
+    await new Promise(r => realSetTimeout(r, 30)) // well past when the cap would fire
+
+    expect(signal!.aborted).toBe(false)
   })
 })

@@ -2,7 +2,7 @@ import * as tls from "tls"
 const host = "eaccess.play.net"
 const port = 7910
 
-const options = {host, port, rejectUnauthorized: false}
+const connectOptions = {host, port, rejectUnauthorized: false}
 type CharacterInfo = {
   name: string;
   slot: string;
@@ -42,6 +42,9 @@ function hashChar(pwChar : string, hashNum : number) {
 }
 
 export async function sendAccountDetails (sge :tls.TLSSocket, account : string, password: string, mask: string) {
+  if (mask.length < password.length) {
+    throw new Error(`malformed hash key from eAccess (${mask.length} bytes for a ${password.length} character password)`)
+  }
   const maskedPassword = password.split("").map((char, i) => hashChar(char, mask[i].charCodeAt(0)))
 
   const auth = Buffer.concat([
@@ -72,122 +75,195 @@ export function parseGameList (incoming : string) : Record<string, string> {
   return tsvToRecord(list)
 }
 
-interface AfterAuth {
-  (sge : tls.TLSSocket, incoming : string): void
+export interface SessionOptions {
+  /** give up on the whole eAccess exchange after this long (default 30s) */
+  timeoutMs?: number
+  /** how long to wait for the rest of a reply that arrived without a trailing newline (default 1s) */
+  partialReplyMs?: number
 }
 
-// I hate this, but because of the statement nature of the underlying socket
-// and the pure nature of a Promise, we have to find a way to ensure underlying
-// socket errors propogate to the Promise wrapping them
-type Todo = 
- | any
+interface Session<T> {
+  sge: tls.TLSSocket
+  resolve: (value: T) => void
+  reject: (error: Error) => void
+}
 
-export function auth (account : string, password : string, reject : Todo, callback : AfterAuth) : void {
-  let state = State.Starting
-  const sge = tls.connect({...options}, () => {
-    //console.log(`connected to %s:%s`, options.host, options.port)
-    
-    sge.write('K')
+// Splits the stream into newline-terminated replies, so a reply split across
+// TCP packets (or two replies in one packet) is handled as whole messages.
+// A trailing fragment with no newline is still delivered once no more data
+// arrives for `idleMs`, preserving the old one-packet-per-reply behaviour.
+function lineFramer (onReply : (reply : string) => void, idleMs : number) {
+  let buffer = ""
+  let idle : ReturnType<typeof setTimeout> | undefined
 
-    // Handle incoming data
-    sge.on('data', (data : Buffer) => {
-      if (state == State.Starting) {
-        state = State.Handshaking
-        return sendAccountDetails(sge, account, password, data.toString())
+  const flush = () => {
+    if (!buffer) return
+    const reply = buffer
+    buffer = ""
+    onReply(reply)
+  }
+
+  return {
+    push (chunk : string) {
+      clearTimeout(idle)
+      buffer += chunk
+      let newline : number
+      while ((newline = buffer.indexOf("\n")) !== -1) {
+        const reply = buffer.slice(0, newline + 1)
+        buffer = buffer.slice(newline + 1)
+        onReply(reply)
       }
+      if (buffer) idle = setTimeout(flush, idleMs)
+    },
+    stop () {
+      clearTimeout(idle)
+    },
+  }
+}
 
-      if (state == State.Handshaking) {
-        const incoming = data.toString()
-        if (incoming.includes("PASSWORD")) {
-          reject(new Error(`account:${account} | invalid password`))
-        }
-        if (incoming.endsWith("PROBLEM")) {
-          reject(new Error(incoming))
-        }
-        if (incoming.startsWith("?")) {
-          reject(new Error("invalid protocol implementation"))
-        }
-        if (incoming.startsWith("A") && incoming.includes("KEY")) {
+// Runs one authenticated eAccess exchange. `onReply` receives each reply after
+// the account is authenticated and the game is selected. The returned promise
+// settles exactly once; every exit path (result, protocol error, exception in
+// a handler, socket error or close, timeout) destroys the socket and clears
+// the timers.
+function session<T> (
+  account : string,
+  password : string,
+  gameCode : GameCode,
+  onReply : (reply : string, session : Session<T>) => void,
+  options : SessionOptions = {},
+) : Promise<T> {
+  const { timeoutMs = 30_000, partialReplyMs = 1000 } = options
+
+  return new Promise<T>((resolve, reject) => {
+    let state = State.Starting
+    let settled = false
+    let timeout : ReturnType<typeof setTimeout> | undefined
+    let framer : ReturnType<typeof lineFramer> | undefined
+    let sge : tls.TLSSocket | undefined
+
+    const finish = (error : Error | null, value? : T) => {
+      if (settled) return
+      settled = true
+      state = State.Finished
+      clearTimeout(timeout)
+      framer?.stop()
+      sge?.destroy()
+      if (error) reject(error)
+      else resolve(value as T)
+    }
+    const fail = (err : unknown) => finish(err instanceof Error ? err : new Error(String(err)))
+
+    const handleReply = (raw : string, ctx : Session<T>) => {
+      if (state === State.Finished) return
+      const reply = raw.trim()
+
+      if (state === State.Handshaking) {
+        if (reply.startsWith("A") && reply.includes("\tKEY\t")) {
           state = State.Authenticated
-          return sge.write("M")
+          ctx.sge.write("M")
+          return
         }
+        if (reply.includes("PASSWORD")) return ctx.reject(new Error(`account:${account} | invalid password`))
+        if (reply.startsWith("?")) return ctx.reject(new Error("invalid protocol implementation"))
+        // NORECORD, REJECT, PROBLEM, INVALID, ... -- anything else is a failed login
+        return ctx.reject(new Error(`account:${account} | login rejected: ${reply || "(empty reply)"}`))
       }
 
-      if (state == State.Authenticated) {
-        callback(sge, data.toString())
+      if (state === State.Authenticated) {
+        if (reply.startsWith("M")) return void ctx.sge.write(`N\t${gameCode}\n`)
+        if (reply.startsWith("N")) return void ctx.sge.write(`G\t${gameCode}\n`)
+        if (reply.startsWith("G")) return void ctx.sge.write("C\n")
+        return onReply(reply, ctx)
       }
-    })
-  })
-}
-
-function handleCommon (sge : tls.TLSSocket, incoming : string, gameCode : GameCode) {
-  if (incoming.startsWith("M")) {
-    return {ok: sge.write(`N\t${gameCode}\n`)}
-  }
-  if (incoming.startsWith("N")) {
-    return {ok: sge.write(`G\t${gameCode}\n`)}
-  }
-  if (incoming.startsWith("G")) {
-    return {ok: sge.write("C\n")}
-  }
-  return {noop: true}
-}
-
-function handleCharacters (incoming : string) {
-  if (incoming.startsWith("C")) {
-    const records = tsvToRecord(tsv(incoming).slice(5))
-    return {ok: Object.entries(records).map(([slot, name])=> ({slot, name}))}
-  }
-
-  return {noop: true}
-}
-
-export async function listCharacters (account : string, password : string, gameCode : GameCode) : Promise<CharacterInfo[]> {
-  return new Promise((resolve, reject)=> {
-    try {
-      auth(account, password, reject, (sge, incoming)=> {
-        const common = handleCommon(sge, incoming, gameCode)
-        if (common.ok) return
-        const characters = handleCharacters(incoming)
-        if (characters.ok) {
-          sge.destroy()
-          resolve(characters.ok)
-        }
-      })
-    } catch (err) {
-      reject(err)
     }
-  })
-}
 
-export async function getOTP (account : string, password : string, gameCode : GameCode, requestedCharacter : string) : Promise<OTP> {
-  return new Promise((resolve, reject)=> {
     try {
-      auth(account, password, reject, (sge, incoming)=> {
-        const common = handleCommon(sge, incoming, gameCode)
-        if (common.ok) return
-        const characters = handleCharacters(incoming)
-        if (characters.ok) {
-          const character = characters.ok.find(({name: availableCharacter})=> availableCharacter.toLowerCase() == requestedCharacter.toLowerCase())
-          if (!character) {
-            sge.destroy()
-            return reject(new Error(`account ${account} does not have requested character ${requestedCharacter}`))
+      timeout = setTimeout(
+        () => fail(new Error(`account:${account} | eAccess timed out after ${timeoutMs}ms`)),
+        timeoutMs,
+      )
+
+      const socket : tls.TLSSocket = tls.connect({...connectOptions}, () => socket.write("K"))
+      sge = socket
+      const ctx : Session<T> = {
+        sge: socket,
+        resolve: value => finish(null, value),
+        reject: error => finish(error),
+      }
+
+      framer = lineFramer(reply => {
+        try {
+          handleReply(reply, ctx)
+        } catch (err) {
+          fail(err)
+        }
+      }, partialReplyMs)
+
+      socket.on("data", (data : Buffer) => {
+        try {
+          if (state === State.Starting) {
+            // The hash key is read as the first raw chunk, as the official
+            // launcher and lich-5 both do; it is not newline-framed.
+            state = State.Handshaking
+            sendAccountDetails(socket, account, password, data.toString()).catch(fail)
+            return
           }
-          return sge.write(`L\t${character.slot}\tSTORM\n`)
+          framer!.push(data.toString())
+        } catch (err) {
+          fail(err)
         }
-        
-        if (incoming.startsWith("L")) {
-          const key = incoming.match(/KEY=(\S+)/)![1]
-          const host = incoming.match(/GAMEHOST=(\S+)/)![1]
-          const port = parseInt(incoming.match(/GAMEPORT=(\d+)/)![1], 10)
-          sge.destroy()
-          return resolve({key, host, port})
-        }
-
-        return reject(new Error(`Error - unknown text received:\n${incoming}`))
       })
+      socket.on("error", fail)
+      socket.on("close", () => fail(new Error(`account:${account} | eAccess closed the connection before login completed`)))
     } catch (err) {
-      reject(err)
+      fail(err)
     }
   })
+}
+
+function parseCharacters (reply : string) : CharacterInfo[] {
+  const records = tsvToRecord(tsv(reply).slice(5))
+  return Object.entries(records).map(([slot, name]) => ({slot, name}))
+}
+
+export async function listCharacters (account : string, password : string, gameCode : GameCode, options? : SessionOptions) : Promise<CharacterInfo[]> {
+  return session<CharacterInfo[]>(account, password, gameCode, (reply, {resolve, reject}) => {
+    if (reply.startsWith("C")) return resolve(parseCharacters(reply))
+    reject(new Error(`Error - unknown text received:\n${reply}`))
+  }, options)
+}
+
+function launchField (reply : string, field : string) {
+  const value = reply.match(new RegExp(`(?:^|\\t)${field}=([^\\t]+)`))?.[1]
+  if (!value) throw new Error(`eAccess launch reply is missing ${field}: ${reply}`)
+  return value
+}
+
+export async function getOTP (account : string, password : string, gameCode : GameCode, requestedCharacter : string, options? : SessionOptions) : Promise<OTP> {
+  return session<OTP>(account, password, gameCode, (reply, {sge, resolve, reject}) => {
+    if (reply.startsWith("C")) {
+      const character = parseCharacters(reply).find(({name}) => name.toLowerCase() == requestedCharacter.toLowerCase())
+      if (!character) {
+        return reject(new Error(`account ${account} does not have requested character ${requestedCharacter}`))
+      }
+      return void sge.write(`L\t${character.slot}\tSTORM\n`)
+    }
+
+    if (reply.startsWith("L\tOK\t")) {
+      const port = parseInt(launchField(reply, "GAMEPORT"), 10)
+      if (!Number.isInteger(port)) throw new Error(`eAccess launch reply has an invalid GAMEPORT: ${reply}`)
+      return resolve({
+        key: launchField(reply, "KEY"),
+        host: launchField(reply, "GAMEHOST"),
+        port,
+      })
+    }
+
+    if (reply.startsWith("L")) {
+      return reject(new Error(`account:${account} | ${requestedCharacter} could not be launched: ${reply}`))
+    }
+
+    reject(new Error(`Error - unknown text received:\n${reply}`))
+  }, options)
 }

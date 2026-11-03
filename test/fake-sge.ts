@@ -15,8 +15,12 @@ export interface FakeSGEOptions {
   gameHost?: string
   gamePort?: number
   gameKey?: string
-  /** override the reply to a given client message (by its leading letter) */
-  overrides?: Record<string, string>
+  /** override the reply to a given client message (by its leading letter); null = never reply */
+  overrides?: Record<string, string | null>
+  /** deliver each command reply (not the hash key) in pieces of this many bytes, as separate 'data' events */
+  chunkSize?: number
+  /** called with the fake socket once connected, e.g. to emit 'error' or 'close' */
+  onConnect?: (socket: EventEmitter) => void
 }
 
 export interface FakeSGE {
@@ -54,27 +58,40 @@ export function installFakeSGE(opts: FakeSGEOptions): FakeSGE {
     state.connectOptions.push(connectOpts)
     const sock = new EventEmitter() as EventEmitter & { write: Function; destroy: Function }
 
-    const reply = (text: string) => setImmediate(() => {
+    const emitData = (piece: string) => {
       try {
-        sock.emit("data", Buffer.from(text, "latin1"))
+        sock.emit("data", Buffer.from(piece, "latin1"))
       } catch (error) {
         // Surface it as a test failure instead of an uncaught exception, which
         // would otherwise leave the awaited promise pending forever.
         state.listenerErrors.push(error)
         failRun(error)
       }
-    })
+    }
+    // `whole` replies are never split: the client reads the hash key as one raw chunk
+    const reply = (text: string | null, whole = false) => {
+      if (text === null) return
+      const size = whole ? text.length : opts.chunkSize ?? text.length
+      const pieces = text.length ? text.match(new RegExp(`[\\s\\S]{1,${size}}`, "g"))! : [""]
+      // one event-loop turn per piece, so each arrives as its own 'data' event
+      pieces.reduce((after, piece) => after.then(() => new Promise<void>(r => setTimeout(() => { emitData(piece); r() }, 0))), Promise.resolve())
+    }
 
-    sock.destroy = () => { state._destroyed = true }
+    sock.destroy = () => {
+      if (state._destroyed) return
+      state._destroyed = true
+      setTimeout(() => sock.emit("close"), 0)
+    }
     sock.write = (data: string | Buffer) => {
       const buf = Buffer.isBuffer(data) ? data : Buffer.from(data, "latin1")
       const msg = buf.toString("latin1")
       state.received.push(msg)
 
+      if (state._destroyed) return false
       const override = opts.overrides?.[msg[0]]
       if (override !== undefined) return reply(override), true
 
-      if (msg === "K") return reply(MASK), true
+      if (msg === "K") return reply(MASK, true), true
       if (msg.startsWith("A\t")) {
         const [, account, ...rest] = msg.split("\t")
         const password = unmask(Buffer.from(rest.join("\t"), "latin1"))
@@ -98,7 +115,10 @@ export function installFakeSGE(opts: FakeSGEOptions): FakeSGE {
       return reply("?\n"), true
     }
 
-    setImmediate(onConnect)
+    setTimeout(() => {
+      onConnect()
+      opts.onConnect?.(sock)
+    }, 0)
     return sock
   }) as any)
 

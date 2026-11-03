@@ -24,12 +24,16 @@ async function retryCharacterLogin(
     try {
       const otp = await SGE.Secure.getOTP(account, password, gameCode, character.name)
       
-      const outcome = await Promise.race([
-        Game.useOTP(otp),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error(`Timeout after ${timeoutMs}ms`)), timeoutMs)
-        )
-      ]) as Awaited<ReturnType<typeof Game.useOTP>>
+      // Cap the whole game login (including useOTP's own retries). Aborting
+      // closes the socket rather than leaving it, and the timer, running.
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(new Error(`Timeout after ${timeoutMs}ms`)), timeoutMs)
+      let outcome: Awaited<ReturnType<typeof Game.useOTP>>
+      try {
+        outcome = await Game.useOTP(otp, { signal: controller.signal })
+      } finally {
+        clearTimeout(timer)
+      }
       
       const msg = `${character.name} > ${outcome.message}`
       console.log(msg)

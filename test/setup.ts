@@ -23,3 +23,28 @@ globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) =>
   if (!res.url) Object.defineProperty(res, "url", { value: req.url })
   return res
 }) as typeof fetch
+
+/**
+ * Records timers created with any of the given durations and reports whether each was cleared.
+ * Call inside a test; spies are undone by mock.restore().
+ */
+export async function trackTimers(...durations: number[]) {
+  const { spyOn } = await import("bun:test")
+  const realSet = globalThis.setTimeout
+  const realClear = globalThis.clearTimeout
+  const created: unknown[] = []
+  const cleared = new Set<unknown>()
+  spyOn(globalThis, "setTimeout").mockImplementation(((fn: any, delay?: number, ...args: any[]) => {
+    const handle = realSet(fn, delay, ...args)
+    if (delay !== undefined && durations.includes(delay)) created.push(handle)
+    return handle
+  }) as any)
+  spyOn(globalThis, "clearTimeout").mockImplementation(((handle: any) => {
+    cleared.add(handle)
+    return realClear(handle)
+  }) as any)
+  return {
+    created: () => created.length,
+    allCleared: () => created.length > 0 && created.every(h => cleared.has(h)),
+  }
+}
